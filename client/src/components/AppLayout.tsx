@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Link as WouterLink } from "wouter";
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "总览", path: "/dashboard", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
+  { icon: LayoutDashboard, label: "总览", path: "/", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
   { icon: Users, label: "设计师", path: "/designers", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
   { icon: Image, label: "作品集", path: "/portfolios", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
   { icon: Calendar, label: "排期管理", path: "/schedule", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
