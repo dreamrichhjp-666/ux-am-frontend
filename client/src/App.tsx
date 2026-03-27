@@ -13,6 +13,7 @@ import Projects from "./pages/Projects";
 import Analytics from "./pages/Analytics";
 import Portfolios from "./pages/Portfolios";
 import UserManagement from "./pages/UserManagement";
+import Profile from "./pages/Profile";
 import AppLayout from "./components/AppLayout";
 import { usePlatformAuth } from "./contexts/PlatformAuthContext";
 import { Loader2 } from "lucide-react";
@@ -46,6 +47,7 @@ function AuthenticatedApp() {
         <Route path="/projects" component={Projects} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/users" component={UserManagement} />
+        <Route path="/profile" component={Profile} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

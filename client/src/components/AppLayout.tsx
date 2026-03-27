@@ -13,11 +13,13 @@ import {
   ChevronRight,
   Image,
   FolderOpen,
+  UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Link as WouterLink } from "wouter";
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "总览", path: "/dashboard", roles: ["super_admin", "pm_manager", "team_lead", "designer", "viewer"] },
@@ -120,10 +122,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
 
           <div className={cn("flex", collapsed ? "flex-col gap-2" : "gap-2")}>
+            <WouterLink href="/profile">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 h-8 text-xs justify-start gap-2"
+                style={{ color: "oklch(0.55 0.03 250)" }}
+                title="个人信息"
+              >
+                <UserCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {!collapsed && "我的"}
+              </Button>
+            </WouterLink>
             <Button
               variant="ghost"
               size="sm"
-              className="flex-1 h-8 text-xs justify-start gap-2"
+              className="h-8 text-xs justify-start gap-2"
               style={{ color: "oklch(0.55 0.03 250)" }}
               onClick={handleLogout}
               title="退出登录"
