@@ -165,6 +165,23 @@ export default function Schedule() {
       toast.error("请填写必填项");
       return;
     }
+    
+    // 检测排期冲突
+    const utils = trpc.useUtils();
+    try {
+      const conflictCheck = await utils.schedules.checkConflicts.fetch({
+        designerId: parseInt(form.designerId),
+        startDate: form.startDate,
+        endDate: form.endDate,
+      });
+      
+      if (conflictCheck.hasConflicts) {
+        toast.warning(`检测到 ${conflictCheck.conflictCount} 个排期冲突，但仍然保存`, { duration: 5000 });
+      }
+    } catch (error) {
+      console.error('检测冲突失败:', error);
+    }
+    
     const designer = designers?.find((d) => d.id === parseInt(form.designerId));
     await createMutation.mutateAsync({
       projectId: parseInt(form.projectId),
@@ -179,6 +196,23 @@ export default function Schedule() {
 
   const handleUpdate = async () => {
     if (!editingSchedule) return;
+    
+    // 检测排期冲突
+    try {
+      const conflictCheck = await utils.schedules.checkConflicts.fetch({
+        designerId: editingSchedule.designerId,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        excludeScheduleId: editingSchedule.id,
+      });
+      
+      if (conflictCheck.hasConflicts) {
+        toast.warning(`检测到 ${conflictCheck.conflictCount} 个排期冲突，但仍然保存`, { duration: 5000 });
+      }
+    } catch (error) {
+      console.error('检测冲突失败:', error);
+    }
+    
     await updateMutation.mutateAsync({
       id: editingSchedule.id,
       startDate: form.startDate,

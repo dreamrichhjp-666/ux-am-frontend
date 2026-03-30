@@ -30,6 +30,7 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
+  detectScheduleConflicts,
   hashPassword,
   verifyPassword,
   initDefaultUsers,
@@ -39,6 +40,7 @@ import {
 } from "./db";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
+import { exportSchedulesToExcel, exportAnalyticsToExcel, exportDesignersToExcel } from "./excel";
 
 const ROLES: Record<string, number> = {
   super_admin: 5,
@@ -349,13 +351,21 @@ const schedulesRouter = router({
     return getSchedulesByProject(input.projectId);
   }),
 
+  checkConflicts: publicProcedure
+    .input(z.object({ designerId: z.number(), startDate: z.string(), endDate: z.string(), excludeScheduleId: z.number().optional() }))
+    .query(async ({ input }) => {
+      const conflicts = await detectScheduleConflicts(input.designerId, input.startDate, input.endDate, input.excludeScheduleId);
+      return { hasConflicts: conflicts.length > 0, conflictCount: conflicts.length, message: conflicts.length > 0 ? `检测到 ${conflicts.length} 个排期冲突` : "无冲突" };
+    }),
+
   create: publicProcedure
     .input(z.object({ projectId: z.number(), designerId: z.number(), roleType: z.string(), startDate: z.string(), endDate: z.string(), workloadPercent: z.number().optional(), notes: z.string().optional() }))
     .mutation(async ({ input, ctx }) => {
       const session = await getPlatformSession(ctx);
       requireRole(session.platformRole, "pm_manager");
+      const conflicts = await detectScheduleConflicts(input.designerId, input.startDate, input.endDate);
       await createSchedule(input as any);
-      return { success: true };
+      return { success: true, hasConflicts: conflicts.length > 0, conflictCount: conflicts.length };
     }),
 
   update: publicProcedure
@@ -364,8 +374,19 @@ const schedulesRouter = router({
       const session = await getPlatformSession(ctx);
       requireRole(session.platformRole, "pm_manager");
       const { id, ...data } = input;
+      let conflicts: any[] = [];
+      if (data.designerId || data.startDate || data.endDate) {
+        const allSchedules = await getAllSchedules();
+        const currentSchedule = allSchedules.find(s => s.id === id);
+        if (currentSchedule) {
+          const designerId = data.designerId || currentSchedule.designerId;
+          const startDate = data.startDate || currentSchedule.startDate;
+          const endDate = data.endDate || currentSchedule.endDate;
+          conflicts = await detectScheduleConflicts(designerId, startDate, endDate, id);
+        }
+      }
       await updateSchedule(id, data as any);
-      return { success: true };
+      return { success: true, hasConflicts: conflicts.length > 0, conflictCount: conflicts.length };
     }),
 
   delete: publicProcedure
@@ -431,6 +452,39 @@ const analyticsRouter = router({
     }),
 });
 
+// Excel导出路由
+const exportRouter = router({
+  schedules: publicProcedure
+    .query(async ({ ctx }) => {
+      const session = await getPlatformSession(ctx);
+      requireRole(session.platformRole, "pm_manager");
+      const schedules = await getAllSchedules();
+      const designers = await getAllDesigners();
+      const projects = await getAllProjects();
+      const buffer = exportSchedulesToExcel(schedules, designers, projects);
+      return { success: true, data: buffer.toString('base64') };
+    }),
+
+  analytics: publicProcedure
+    .query(async ({ ctx }) => {
+      const session = await getPlatformSession(ctx);
+      requireRole(session.platformRole, "team_lead");
+      const designers = await getAllDesigners();
+      const schedules = await getAllSchedules();
+      const buffer = exportAnalyticsToExcel(designers, schedules);
+      return { success: true, data: buffer.toString('base64') };
+    }),
+
+  designers: publicProcedure
+    .query(async ({ ctx }) => {
+      const session = await getPlatformSession(ctx);
+      requireRole(session.platformRole, "pm_manager");
+      const designers = await getAllDesigners();
+      const buffer = exportDesignersToExcel(designers);
+      return { success: true, data: buffer.toString('base64') };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -448,6 +502,8 @@ export const appRouter = router({
   projects: projectsRouter,
   schedules: schedulesRouter,
   analytics: analyticsRouter,
+  export: exportRouter,
 });
 
 export type AppRouter = typeof appRouter;
+export type ExportRouter = typeof exportRouter;

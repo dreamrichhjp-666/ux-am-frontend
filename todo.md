@@ -45,6 +45,6 @@
 
 ## 待优化（未来迭代）
 - [x] 作品集图片直接上传（已实现：本地文件选择 → base64 → S3存储）
-- [ ] 排期冲突自动检测与提醒
+- [x] 排期冲突自动检测与提醒（已完成：detectScheduleConflicts函数 + checkConflicts API）
 - [x] 设计师个人信息自助编辑页面（已完成：/profile页面）
-- [ ] 导出Excel报表功能
+- [x] 导出Excel报表功能（已完成：三个导出接口 + Analytics页面导出按针）

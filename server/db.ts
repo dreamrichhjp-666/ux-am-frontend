@@ -281,6 +281,36 @@ export async function getSchedulesByProject(projectId: number) {
   return db.select().from(schedules).where(eq(schedules.projectId, projectId));
 }
 
+/**
+ * 检测设计师在指定时间段内是否有冲突的排期
+ * 返回冲突的排期列表（不包括指定的excludeScheduleId）
+ */
+export async function detectScheduleConflicts(
+  designerId: number,
+  startDate: string,
+  endDate: string,
+  excludeScheduleId?: number
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const designerSchedules = await db
+    .select()
+    .from(schedules)
+    .where(eq(schedules.designerId, designerId));
+
+  // 过滤出与新排期时间重叠的排期
+  const conflicts = designerSchedules.filter((schedule) => {
+    // 排除指定的排期（用于编辑场景）
+    if (excludeScheduleId && schedule.id === excludeScheduleId) return false;
+
+    // 检测时间重叠：新排期开始时间 < 现有排期结束时间 && 新排期结束时间 > 现有排期开始时间
+    return startDate < schedule.endDate && endDate > schedule.startDate;
+  });
+
+  return conflicts;
+}
+
 export async function createSchedule(data: InsertSchedule) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

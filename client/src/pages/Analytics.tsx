@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, TrendingUp, Users, Clock, BarChart2 } from "lucide-react";
+import { Loader2, TrendingUp, Users, Clock, BarChart2, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -29,6 +30,7 @@ export default function Analytics() {
   const { data: designers } = trpc.designers.list.useQuery();
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: projects } = trpc.projects.list.useQuery();
+
 
   // 计算每位设计师的年度人效
   const designerEfficiency = useMemo(() => {
@@ -91,6 +93,26 @@ export default function Analytics() {
 
   const isLoading = overviewLoading || monthlyLoading;
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAnalytics = async () => {
+    setIsExporting(true);
+    try {
+      const utils = trpc.useUtils();
+      const result = await utils.export.analytics.fetch();
+      if (result.success && result.data) {
+        const link = document.createElement('a');
+        link.href = `data:application/octet-stream;base64,${result.data}`;
+        link.download = `人效分析_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.click();
+      }
+    } catch (error) {
+      console.error('导出失败:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* 页头 */}
@@ -99,6 +121,10 @@ export default function Analytics() {
           <h1 className="text-2xl font-bold">经营数据</h1>
           <p className="text-sm text-muted-foreground mt-1">设计中台人效分析与运营洞察</p>
         </div>
+        <Button onClick={handleExportAnalytics} disabled={isExporting} className="gap-2">
+          <Download className="w-4 h-4" />
+          {isExporting ? '导出中...' : '导出Excel'}
+        </Button>
         <div className="flex gap-2">
           <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(parseInt(v))}>
             <SelectTrigger className="w-24 h-9">
