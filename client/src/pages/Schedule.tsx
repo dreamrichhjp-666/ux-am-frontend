@@ -18,10 +18,17 @@ const ROLE_COLORS: Record<string, string> = {
   ICON: "#059669",
 };
 
+const MONTH_COLORS = [
+  "#7C3AED", "#EA580C", "#059669", "#3B82F6", "#EC4899", "#F59E0B",
+  "#06B6D4", "#EF4444", "#8B5CF6", "#10B981", "#F97316", "#6366F1"
+];
+
 const PROJECT_PALETTE = [
   "#7C3AED", "#EA580C", "#059669", "#3B82F6", "#EC4899",
   "#F59E0B", "#06B6D4", "#EF4444", "#8B5CF6", "#10B981",
 ];
+
+const MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
 type ScheduleForm = {
   projectId: string;
@@ -41,11 +48,20 @@ const defaultForm: ScheduleForm = {
   notes: "",
 };
 
+// 获取日期所在的月份（1-12）
+const getMonthFromDate = (dateStr: string) => {
+  return parseInt(dateStr.split("-")[1]);
+};
+
+// 获取月份的天数
+const getDaysInMonth = (year: number, month: number) => {
+  return new Date(year, month, 0).getDate();
+};
+
 export default function Schedule() {
   const { user, canManageSchedule } = usePlatformAuth();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
   const [filterRole, setFilterRole] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<any>(null);
@@ -85,10 +101,6 @@ export default function Schedule() {
     onError: (e) => toast.error(e.message),
   });
 
-  // 计算当月天数和日期列表
-  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
-  const daysList = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
   // 筛选设计师
   const filteredDesigners = useMemo(() => {
     return (designers ?? []).filter((d) => {
@@ -97,18 +109,10 @@ export default function Schedule() {
     });
   }, [designers, filterRole]);
 
-  // 获取设计师在某天的排期
-  const getDesignerSchedulesForDay = (designerId: number, day: number) => {
-    const dateStr = `${viewYear}-${String(viewMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return (schedules ?? []).filter(
-      (s) => s.designerId === designerId && s.startDate <= dateStr && s.endDate >= dateStr
-    );
-  };
-
-  // 获取设计师在当月的所有排期段
-  const getDesignerMonthSchedules = (designerId: number) => {
-    const monthStart = `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`;
-    const monthEnd = `${viewYear}-${String(viewMonth).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+  // 获取设计师在指定月份的排期
+  const getDesignerMonthSchedules = (designerId: number, month: number) => {
+    const monthStart = `${viewYear}-${String(month).padStart(2, "0")}-01`;
+    const monthEnd = `${viewYear}-${String(month).padStart(2, "0")}-${String(getDaysInMonth(viewYear, month)).padStart(2, "0")}`;
     return (schedules ?? []).filter(
       (s) =>
         s.designerId === designerId &&
@@ -117,10 +121,11 @@ export default function Schedule() {
     );
   };
 
-  // 计算甘特条的位置和宽度
-  const getBarStyle = (schedule: any) => {
-    const monthStart = `${viewYear}-${String(viewMonth).padStart(2, "0")}-01`;
-    const monthEnd = `${viewYear}-${String(viewMonth).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+  // 计算甘特条在月份中的位置和宽度
+  const getBarStyle = (schedule: any, month: number) => {
+    const monthStart = `${viewYear}-${String(month).padStart(2, "0")}-01`;
+    const monthEnd = `${viewYear}-${String(month).padStart(2, "0")}-${String(getDaysInMonth(viewYear, month)).padStart(2, "0")}`;
+    const daysInMonth = getDaysInMonth(viewYear, month);
 
     const effectiveStart = schedule.startDate < monthStart ? monthStart : schedule.startDate;
     const effectiveEnd = schedule.endDate > monthEnd ? monthEnd : schedule.endDate;
@@ -139,14 +144,19 @@ export default function Schedule() {
     return { left: `${left}%`, width: `${width}%`, color };
   };
 
-  const prevMonth = () => {
-    if (viewMonth === 1) { setViewYear(viewYear - 1); setViewMonth(12); }
-    else setViewMonth(viewMonth - 1);
+  // 获取排期跨越的月份
+  const getScheduleSpanMonths = (schedule: any) => {
+    const startMonth = getMonthFromDate(schedule.startDate);
+    const endMonth = getMonthFromDate(schedule.endDate);
+    const months = [];
+    for (let m = startMonth; m <= endMonth; m++) {
+      months.push(m);
+    }
+    return months;
   };
-  const nextMonth = () => {
-    if (viewMonth === 12) { setViewYear(viewYear + 1); setViewMonth(1); }
-    else setViewMonth(viewMonth + 1);
-  };
+
+  const prevYear = () => setViewYear(viewYear - 1);
+  const nextYear = () => setViewYear(viewYear + 1);
 
   const openEdit = (schedule: any) => {
     setForm({
@@ -223,8 +233,7 @@ export default function Schedule() {
   };
 
   const todayStr = today.toISOString().split("T")[0];
-  const todayDay = today.getFullYear() === viewYear && today.getMonth() + 1 === viewMonth
-    ? today.getDate() : null;
+  const currentMonth = today.getFullYear() === viewYear ? today.getMonth() + 1 : null;
 
   const isLoading = designersLoading || schedulesLoading;
 
@@ -234,7 +243,7 @@ export default function Schedule() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">排期管理</h1>
-          <p className="text-sm text-muted-foreground mt-1">可视化甘特图，管理设计师项目排期</p>
+          <p className="text-sm text-muted-foreground mt-1">全年排期视图，以月为单位管理设计师项目排期</p>
         </div>
         {canManageSchedule && (
           <Button
@@ -251,22 +260,22 @@ export default function Schedule() {
       {/* 控制栏 */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={prevMonth}>
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={prevYear}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <span className="text-base font-semibold min-w-24 text-center">
-            {viewYear}年{viewMonth}月
+            {viewYear}年
           </span>
-          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={nextMonth}>
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={nextYear}>
             <ChevronRight className="w-4 h-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
             className="h-8 text-xs ml-2"
-            onClick={() => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth() + 1); }}
+            onClick={() => setViewYear(today.getFullYear())}
           >
-            本月
+            今年
           </Button>
         </div>
 
@@ -286,7 +295,7 @@ export default function Schedule() {
         </div>
       </div>
 
-      {/* 甘特图 */}
+      {/* 全年甘特图 */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -294,29 +303,24 @@ export default function Schedule() {
       ) : (
         <Card className="border-0 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <div style={{ minWidth: "800px" }}>
-              {/* 日期头部 */}
+            <div style={{ minWidth: "1200px" }}>
+              {/* 月份头部 */}
               <div className="flex border-b bg-muted/30" style={{ paddingLeft: "160px" }}>
-                {daysList.map((day) => {
-                  const dateStr = `${viewYear}-${String(viewMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                  const date = new Date(dateStr);
-                  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                  const isToday = day === todayDay;
+                {MONTH_NAMES.map((monthName, idx) => {
+                  const month = idx + 1;
+                  const isCurrentMonth = month === currentMonth;
                   return (
                     <div
-                      key={day}
+                      key={month}
                       className="flex-1 text-center py-2 text-xs border-r last:border-r-0"
                       style={{
-                        color: isToday ? "#7C3AED" : isWeekend ? "#9CA3AF" : "#6B7280",
-                        fontWeight: isToday ? "700" : "400",
-                        background: isToday ? "#F3F0FF" : isWeekend ? "#FAFAFA" : undefined,
-                        minWidth: "28px",
+                        color: isCurrentMonth ? "#7C3AED" : "#6B7280",
+                        fontWeight: isCurrentMonth ? "700" : "500",
+                        background: isCurrentMonth ? "#F3F0FF" : undefined,
+                        minWidth: "80px",
                       }}
                     >
-                      <div>{day}</div>
-                      <div style={{ fontSize: "9px" }}>
-                        {["日", "一", "二", "三", "四", "五", "六"][date.getDay()]}
-                      </div>
+                      {monthName}
                     </div>
                   );
                 })}
@@ -329,12 +333,11 @@ export default function Schedule() {
                 </div>
               ) : (
                 filteredDesigners.map((designer) => {
-                  const monthSchedules = getDesignerMonthSchedules(designer.id);
                   return (
                     <div
                       key={designer.id}
                       className="flex border-b last:border-b-0 hover:bg-muted/20 transition-colors"
-                      style={{ minHeight: "52px" }}
+                      style={{ minHeight: "80px" }}
                     >
                       {/* 设计师名称 */}
                       <div
@@ -342,79 +345,84 @@ export default function Schedule() {
                         style={{ width: "160px", background: "white" }}
                       >
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                           style={{ background: ROLE_COLORS[designer.roleType] }}
                         >
                           {designer.name.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-xs font-medium truncate">{designer.name}</div>
+                          <div className="text-sm font-medium truncate">{designer.name}</div>
                           <div className="text-xs text-muted-foreground">{designer.roleType}</div>
                         </div>
                       </div>
 
-                      {/* 甘特条区域 */}
-                      <div className="flex-1 relative" style={{ minHeight: "52px" }}>
-                        {/* 日期格线 */}
-                        <div className="absolute inset-0 flex">
-                          {daysList.map((day) => {
-                            const dateStr = `${viewYear}-${String(viewMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                            const date = new Date(dateStr);
-                            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                            const isToday = day === todayDay;
-                            return (
-                              <div
-                                key={day}
-                                className="flex-1 border-r last:border-r-0"
-                                style={{
-                                  background: isToday ? "#F3F0FF" : isWeekend ? "#FAFAFA" : undefined,
-                                  borderColor: "#F0F0F0",
-                                  minWidth: "28px",
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
+                      {/* 12个月份单元格 */}
+                      <div className="flex-1 flex">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
+                          const monthSchedules = getDesignerMonthSchedules(designer.id, month);
+                          const isCurrentMonth = month === currentMonth;
+                          const daysInMonth = getDaysInMonth(viewYear, month);
+                          
+                          return (
+                            <div
+                              key={month}
+                              className="flex-1 border-r last:border-r-0 relative"
+                              style={{
+                                background: isCurrentMonth ? "#F3F0FF" : "#FAFAFA",
+                                minWidth: "80px",
+                                minHeight: "80px",
+                              }}
+                            >
+                              {/* 月份内日期细分（可选显示） */}
+                              <div className="absolute inset-0 flex">
+                                {Array.from({ length: Math.min(daysInMonth, 10) }, (_, i) => i + 1).map((day) => (
+                                  <div
+                                    key={day}
+                                    className="flex-1 border-r border-dashed"
+                                    style={{ borderColor: "#E5E7EB" }}
+                                  />
+                                ))}
+                              </div>
 
-                        {/* 甘特条 */}
-                        <div className="absolute inset-0 flex items-center px-0.5">
-                          {monthSchedules.map((schedule, idx) => {
-                            const { left, width, color } = getBarStyle(schedule);
-                            const project = projects?.find((p) => p.id === schedule.projectId);
-                            return (
-                              <div
-                                key={schedule.id}
-                                className="gantt-bar absolute group"
-                                style={{
-                                  left,
-                                  width,
-                                  background: color,
-                                  top: idx > 0 ? `${idx * 32 + 4}px` : "12px",
-                                  zIndex: 1,
-                                }}
-                                title={`${project?.name || "未知项目"} (${schedule.startDate} ~ ${schedule.endDate})`}
-                              >
-                                <span className="truncate">{project?.name || "项目"}</span>
-                                {canManageSchedule && (
-                                  <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 flex-shrink-0">
-                                    <button
-                                      className="hover:bg-white/20 rounded p-0.5"
-                                      onClick={(e) => { e.stopPropagation(); openEdit(schedule); }}
+                              {/* 排期条 */}
+                              <div className="relative h-full py-1 px-0.5">
+                                {monthSchedules.slice(0, 3).map((schedule, idx) => {
+                                  const { left, width, color } = getBarStyle(schedule, month);
+                                  const project = projects?.find((p) => p.id === schedule.projectId);
+                                  return (
+                                    <div
+                                      key={schedule.id}
+                                      className="gantt-bar-mini absolute group cursor-pointer"
+                                      style={{
+                                        left,
+                                        width,
+                                        background: color,
+                                        top: `${idx * 22 + 4}px`,
+                                        height: "18px",
+                                        zIndex: 1,
+                                        borderRadius: "2px",
+                                      }}
+                                      title={`${project?.name || "未知项目"} (${schedule.startDate} ~ ${schedule.endDate})`}
+                                      onClick={() => canManageSchedule && openEdit(schedule)}
                                     >
-                                      <Edit2 className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      className="hover:bg-white/20 rounded p-0.5"
-                                      onClick={(e) => { e.stopPropagation(); deleteMutation.mutate({ id: schedule.id }); }}
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+                                      <span className="truncate text-[10px] text-white px-1 leading-[18px] block">
+                                        {project?.name || "项目"}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {monthSchedules.length > 3 && (
+                                  <div 
+                                    className="absolute text-[10px] text-muted-foreground"
+                                    style={{ bottom: "2px", right: "4px" }}
+                                  >
+                                    +{monthSchedules.length - 3}
                                   </div>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -428,7 +436,7 @@ export default function Schedule() {
       {/* 图例 */}
       {projects && projects.length > 0 && (
         <div className="flex flex-wrap gap-3">
-          {projects.filter(p => p.status === "active").map((p, i) => (
+          {projects.filter(p => p.status === "active").slice(0, 8).map((p, i) => (
             <div key={p.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <div
                 className="w-3 h-3 rounded-sm"
@@ -439,6 +447,20 @@ export default function Schedule() {
           ))}
         </div>
       )}
+
+      {/* 月份颜色说明 */}
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <span>月份标识:</span>
+        {MONTH_NAMES.map((name, idx) => (
+          <span key={idx} className="flex items-center gap-1">
+            <span 
+              className="w-2 h-2 rounded-full" 
+              style={{ background: MONTH_COLORS[idx] }}
+            />
+            {name}
+          </span>
+        ))}
+      </div>
 
       {/* 新建排期弹窗 */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
