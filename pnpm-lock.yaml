@@ -257,6 +257,9 @@ importers:
       esbuild:
         specifier: ^0.25.0
         version: 0.25.10
+      pandoc:
+        specifier: ^0.2.0
+        version: 0.2.0
       pnpm:
         specifier: ^10.15.1
         version: 10.18.1
@@ -3843,6 +3846,10 @@ packages:
 
   package-manager-detector@1.5.0:
     resolution: {integrity: sha512-uBj69dVlYe/+wxj8JOpr97XfsxH/eumMt6HqjNTmJDf/6NO9s+0uxeOneIz3AsPt2m6y9PqzDzd3ATcU17MNfw==}
+
+  pandoc@0.2.0:
+    resolution: {integrity: sha512-OD/Sqpv7QYwxgNpzLeEWPkN7+BQgJfONW5UUiEBwYItfszPUU4kS9fA4f0GpWoN1TdGW899dI/7vioMgchtNnQ==}
+    engines: {node: '>= 0.4.0'}
 
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
@@ -8573,6 +8580,8 @@ snapshots:
       regex-recursion: 6.0.2
 
   package-manager-detector@1.5.0: {}
+
+  pandoc@0.2.0: {}
 
   parse-entities@4.0.2:
     dependencies:
